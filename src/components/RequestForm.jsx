@@ -6,7 +6,7 @@ export default function RequestForm({ onCreated, onClose }) {
   const [users, setUsers] = useState([]);
   const [contractors, setContractors] = useState([]);
 
-  const [objectId, setObjectId] = useState("");
+  const [objectName, setObjectName] = useState("");
   const [contractorName, setContractorName] = useState("");
   const [amount, setAmount] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -16,7 +16,7 @@ export default function RequestForm({ onCreated, onClose }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/objects").then((d) => setObjects((d.objects || []).filter((o) => o.is_active)));
+    api.get("/objects").then((d) => setObjects(d.objects || []));
     api.get("/users").then((d) => setUsers(d.users || []));
     api.get("/contractors").then((d) => setContractors(d.contractors || []));
   }, []);
@@ -24,12 +24,13 @@ export default function RequestForm({ onCreated, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!objectId || !contractorName || !amount || !purpose || !responsibleId) {
+    if (!objectName.trim() || !contractorName || !amount || !purpose || !responsibleId) {
       setError("Заполните все поля");
       return;
     }
     setBusy(true);
     try {
+      const { object } = await api.post("/objects", { name: objectName.trim() });
       const { contractor } = await api.post("/contractors", { name: contractorName.trim() });
 
       let photoUrl = null;
@@ -38,7 +39,7 @@ export default function RequestForm({ onCreated, onClose }) {
       }
 
       await api.post("/requests", {
-        object_id: objectId,
+        object_id: object.id,
         contractor_id: contractor.id,
         amount: Number(amount),
         purpose,
@@ -63,16 +64,18 @@ export default function RequestForm({ onCreated, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <select
+          <input
+            list="objects-list"
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-            value={objectId}
-            onChange={(e) => setObjectId(e.target.value)}
-          >
-            <option value="">Объект…</option>
+            placeholder="Объект (впишите название)"
+            value={objectName}
+            onChange={(e) => setObjectName(e.target.value)}
+          />
+          <datalist id="objects-list">
             {objects.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
+              <option key={o.id} value={o.name} />
             ))}
-          </select>
+          </datalist>
 
           <input
             list="contractors-list"
