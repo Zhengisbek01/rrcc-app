@@ -8,11 +8,17 @@ export default requireAuth(async (req, res) => {
   }
 
   if (req.method === "POST") {
-    if (req.user.role !== "director") return res.status(403).json({ error: "Только руководитель может добавлять объекты" });
+    if (!["director", "site_manager"].includes(req.user.role)) {
+      return res.status(403).json({ error: "Недостаточно прав для добавления объекта" });
+    }
     const { name, address } = req.body || {};
-    if (!name) return res.status(400).json({ error: "Укажите название объекта" });
+    if (!name?.trim()) return res.status(400).json({ error: "Укажите название объекта" });
+
+    const { rows: existing } = await sql`select * from objects where lower(name) = ${name.trim().toLowerCase()}`;
+    if (existing.length > 0) return res.status(200).json({ object: existing[0] });
+
     const { rows } = await sql`
-      insert into objects (name, address, created_by) values (${name}, ${address || null}, ${req.user.id})
+      insert into objects (name, address, created_by) values (${name.trim()}, ${address || null}, ${req.user.id})
       returning *
     `;
     return res.status(200).json({ object: rows[0] });
